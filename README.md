@@ -6,8 +6,8 @@
 ## Description
 
 <p float="left">
-  <a href="https://bea-portfolio.s3-us-west-2.amazonaws.com/pigment-in-water/ffn_video_test_1.mp4">
-    <img src="readme_files/pigment-in-water.png" width="400" controls/>
+  <a href="https://bea-portfolio.s3-us-west-2.amazonaws.com/pigment-in-water/ffn_video_test_1.avi">
+    <img src="readme_files/pigment-in-water.png" width="600" controls/>
   </a>
 </p>
 
