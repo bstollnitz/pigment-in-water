@@ -32,7 +32,7 @@ conda activate pigment-in-water
 python main.py
 ```
 
-(MacOS)
+(Mac)
 ```sh
 conda env create -f environment_mac.yml
 conda activate pigment-in-water
