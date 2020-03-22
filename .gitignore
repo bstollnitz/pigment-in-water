@@ -1,7 +1,4 @@
 __pycache__/
-.ropeproject/
 .vscode/settings.json
 data/
-data-old/
 output/
-venv/
