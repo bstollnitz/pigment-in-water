@@ -1,14 +1,13 @@
 import altair as alt
-import cv2
-from keras import models
-from keras import layers
-from keras import callbacks
 import numpy as np
 import pandas as pd
+from keras import callbacks, layers, models
+from pathlib import Path
 
+import cv2
 from cached_dataset import CachedDataset
 from pca_helper import PCAHelper
-from video_helper import save_video, show_video
+from utils_io import save_video, show_video
 
 RETAIN_THRESHOLD = 0.9
 
@@ -18,16 +17,23 @@ class FFNAnalyzer:
     def __init__(
         self,
         train_dataset: CachedDataset,
-        test_dataset: CachedDataset
+        test_dataset: CachedDataset,
+        output_folder: str,
     ) -> None:
         """Initializes the class.
         
         Args:
             train_dataset (CachedDataset): The training dataset.
             test_dataset (CachedDataset): The test dataset.
+            output_folder (str): Output folder.
         """
         self._train = train_dataset
         self._test = test_dataset
+        self._output_folder = output_folder
+
+        # Create the output directory if it doesn't exist.
+        output_dir_path = Path('.', output_folder)
+        output_dir_path.mkdir(exist_ok=True)
 
         # Flatten the data.
         flat_train_video = self._train.u.reshape(
@@ -37,7 +43,7 @@ class FFNAnalyzer:
 
         # Get the train and test coefficients from the dataset, as well
         # as information to convert coefficients into a video.
-        self._pca_helper = PCAHelper(flat_train_video, flat_test_video)
+        self._pca_helper = PCAHelper(flat_train_video, flat_test_video, output_folder)
         (self._train_coefficients, 
         self._test_coefficients) = self._pca_helper.get_coefficients(RETAIN_THRESHOLD)
 
@@ -57,16 +63,16 @@ class FFNAnalyzer:
             x = x.ravel()
             y = y.ravel()
             df = pd.DataFrame({
-                "x": x,
-                "y": y,
-                "mode": mode,
+                'x': x,
+                'y': y,
+                'mode': mode,
             })
             new_chart = alt.Chart(df).mark_rect().encode(
-                x="x:O",
-                y="y:O",
-                color="mode",
+                x='x:O',
+                y='y:O',
+                color='mode',
             ).properties(
-                title=f"Mode {i + 1}"
+                title=f'Mode {i + 1}'
             )
             if chart:
                 chart |= new_chart
@@ -74,7 +80,8 @@ class FFNAnalyzer:
                 chart = new_chart
 
         chart = chart.configure_axis(labels=False, ticks=False)
-        chart.configure(background="#fff").save("Images/modes.png")
+        path = Path(self._output_folder, 'modes.html')
+        chart.configure(background='#fff').save(str(path))
 
     def train_network(self) -> None:
         """Trains a neural network to predict the future of the time series
@@ -106,11 +113,11 @@ class FFNAnalyzer:
         # Note that the input shape should be the shape of one frame of
         # coefficients, not the shape of a sequence of frames for all time.
         self._ffn = models.Sequential()
-        self._ffn.add(layers.Dense(units=1500, activation="relu",
+        self._ffn.add(layers.Dense(units=1500, activation='relu',
             input_shape=(train_input.shape[0],)))
         self._ffn.add(layers.Dense(units=train_output.shape[0]))
 
-        self._ffn.compile(loss="mean_squared_error", optimizer="Adam")
+        self._ffn.compile(loss='mean_squared_error', optimizer='Adam')
 
         print(self._ffn.summary())
         
@@ -119,7 +126,7 @@ class FFNAnalyzer:
         history = self._ffn.fit(train_input.T, train_output.T, epochs=epochs,
             validation_split=validation_split, verbose=1)
 
-        self._plot_metric(history, "loss")
+        self._plot_metric(history, 'loss')
 
     def _plot_metric(self, history: callbacks.History, metric_name: str) -> None:
         """Plots accuracy or loss over time.
@@ -129,50 +136,51 @@ class FFNAnalyzer:
             metric_name (str): 'acc' or 'loss'.
         """
         df1 = pd.DataFrame({
-            "epoch": np.array(history.epoch) + 1,
+            'epoch': np.array(history.epoch) + 1,
             metric_name: history.history[metric_name],
-            "data": "training"
+            'data': 'training'
         })
         df2 = pd.DataFrame({
-            "epoch":  np.array(history.epoch) + 1,
-            metric_name: history.history[f"val_{metric_name}"],
-            "data": "validation"
+            'epoch':  np.array(history.epoch) + 1,
+            metric_name: history.history[f'val_{metric_name}'],
+            'data': 'validation'
         })
         df = df1.append(df2)
 
         chart = alt.Chart(df).mark_line().encode(
-            x="epoch",
+            x='epoch',
             y=alt.Y(metric_name, scale=alt.Scale(zero=False)),
-            color="data"
+            color='data'
         )
 
-        chart.configure(background="#fff").save(
-            f"Images/ffn_{metric_name}.png",
+        path = Path(self._output_folder, f'ffn_{metric_name}.html')
+        chart.configure(background='#fff').save(
+            str(path),
             scale_factor=2.0
         )
 
     def predict_train(self) -> None:
         """Predicts a sequence of coefficients for the train set."""
         for video_index in range(self._train.video_count):
-            self._predict("train", video_index)
+            self._predict('train', video_index)
 
     def predict_test(self) -> None:
         """Predicts a sequence of coefficients for the test set."""
         for video_index in range(self._test.video_count):
-            self._predict("test", video_index)
+            self._predict('test', video_index)
 
     def _predict(self, test_or_train: str, video_index: int) -> None:
         """Predicts a sequence of coefficients for one video in the train or
         test set."""
         # Decide on whether we predict train or test coefficients.
-        if test_or_train == "train":
+        if test_or_train == 'train':
             dataset = self._train
             actual_coefficients = self._train_coefficients
-        elif test_or_train == "test":
+        elif test_or_train == 'test':
             dataset = self._test
             actual_coefficients = self._test_coefficients
         else:
-            raise Exception("Pass 'train' or 'test' to _predict.")
+            raise Exception('Pass "train" or "test" to _predict.')
 
         # Extract the coefficients corresponding to video_index.
         start_index = video_index * dataset.frame_count
@@ -208,38 +216,39 @@ class FFNAnalyzer:
             actual_coefficients (np.ndarray): The actual coefficients.
             predicted_coefficients (np.ndarray): The coefficients we predicted
             earlier.
-            test_or_train (str): "train" if we're plotting the coefficients
-            for the training set, and "test" for the test set.
+            test_or_train (str): 'train' if we're plotting the coefficients
+            for the training set, and 'test' for the test set.
         """
         num_predictions = predicted_coefficients.shape[1]
 
         chart = None
         for idx in np.arange(4):
             df1 = pd.DataFrame({
-                "time": np.arange(num_predictions),
-                "coefficients": actual_coefficients[idx, :],
-                "legend": "actual"
+                'time': np.arange(num_predictions),
+                'coefficients': actual_coefficients[idx, :],
+                'legend': 'actual'
             })
             df2 = pd.DataFrame({
-                "time": np.arange(num_predictions),
-                "coefficients": predicted_coefficients[idx, :],
-                "legend": "predicted"
+                'time': np.arange(num_predictions),
+                'coefficients': predicted_coefficients[idx, :],
+                'legend': 'predicted'
             })
             df = df1.append(df2)
             new_chart = alt.Chart(df).mark_line().encode(
-                x="time",
-                y="coefficients",
-                color="legend"
+                x='time',
+                y='coefficients',
+                color='legend'
             ).properties(
-                title=f"Coefficient {idx + 1} - {test_or_train} video {video_index + 1}"
+                title=f'Coefficient {idx + 1} - {test_or_train} video {video_index + 1}'
             ).interactive()
             if chart is None:
                 chart = new_chart
             else:
-                chart = alt.hconcat(chart, new_chart).resolve_scale(y="shared")
+                chart = alt.hconcat(chart, new_chart).resolve_scale(y='shared')
 
-        chart.configure(background="#fff").save(
-            f"Images/ffn_coefficients_{test_or_train}_{video_index + 1}.png",
+        path = Path(self._output_folder, f'ffn_coefficients_{test_or_train}_{video_index + 1}.html')
+        chart.configure(background='#fff').save(
+            str(path),
             scale_factor=2.0
         )
 
@@ -251,15 +260,15 @@ class FFNAnalyzer:
         Args:
             predicted_coefficients (np.ndarray): The coefficients we predicted
             earlier.
-            test_or_train (np.ndarray): "test" or "train" string.
+            test_or_train (np.ndarray): 'test' or 'train' string.
         """
         # Decide on whether to show the train or test video.
-        if test_or_train == "train":
+        if test_or_train == 'train':
             dataset = self._train
-        elif test_or_train == "test":
+        elif test_or_train == 'test':
             dataset = self._test
         else:
-            raise Exception("Pass 'train' or 'test' to _show_actual_predicted_videos.")
+            raise Exception('Pass "train" or "test" to _show_actual_predicted_videos.')
         actual_video = dataset.u[video_index]
 
         # Undo the coefficient normalization we added earlier.
@@ -276,8 +285,8 @@ class FFNAnalyzer:
         # Clip to prevent clamped pixels.
         both_videos = np.clip(both_videos * 255, 0, 255)
         # Convert from float values to uint8.
-        both_videos = both_videos.astype("uint8")
+        both_videos = both_videos.astype('uint8')
 
-        show_video(f"{test_or_train} {video_index + 1}", both_videos)
-        file_path = f"Images/ffn_video_{test_or_train}_{video_index + 1}.avi"
+        show_video(f'{test_or_train} {video_index + 1}', both_videos)
+        file_path = f'{self._output_folder}/ffn_video_{test_or_train}_{video_index + 1}.avi'
         save_video(file_path, both_videos)

@@ -1,10 +1,9 @@
-import cv2
-import numpy as np
 from typing import List, Tuple
+from pathlib import Path
 
-VIDEO_FILE_PATH = "Data/RedDiffusion{index}.mp4"
+import numpy as np
 
-CACHED_FILE_PATH = "Data/dataset-{name}-{train_or_test}.npz"
+import cv2
 
 # How many frames to read for each frame that is stored in the dataset:
 SPEEDUP_FACTOR = 50
@@ -19,31 +18,33 @@ class DatasetCacher:
         self,
         name: str,
         downsample_video: bool,
-        derivative_method: str
+        derivative_method: str,
+        data_folder: str
     ) -> None:
         """Processes the video files and saves u and its derivatives.
         
         Args:
             name (str): A name for the dataset.
             downsample_video (bool): Whether to downsample the videos.
-            derivative_method (str): "polynomial" (preferred), "h2", "h4",
-                "robust", "savitzky", or None.
+            derivative_method (str): 'polynomial' (preferred), 'h2', 'h4',
+                'robust', 'savitzky', or None.
+            data_folder (str): The data folder.
         """
         self._name = name
         self._downsample_video = downsample_video
         self._derivative_method = derivative_method
+        self._data_folder = data_folder
 
     def compute_and_save(self) -> None:
         """Loads videos, computes derivatives, and saves everything."""
-
         # Load videos.
-        print("Loading videos.")
+        print('Loading videos.')
         u_train = self._load_videos([1, 2, 3, 4])
         u_test = self._load_videos([5])
 
         # Process and save caches for the training and test data.
-        self._cache_dataset("train", u_train)
-        self._cache_dataset("test", u_test)
+        self._cache_dataset('train', u_train)
+        self._cache_dataset('test', u_test)
 
     def _load_videos(self, indices: List[int]) -> np.ndarray:
         """Loads a sequence of videos.
@@ -72,9 +73,9 @@ class DatasetCacher:
             np.ndarray: An array of shape (frame count, y, x).
         """
         # Initialize the video reader and get the video dimensions.
-        file_path = VIDEO_FILE_PATH.format(index=index)
-        print(f"  Loading {file_path}.")
-        capture = cv2.VideoCapture(file_path)
+        file_path = Path(self._data_folder, f'red_diffusion_{index}.mp4')
+        print(f'  Loading {file_path}.')
+        capture = cv2.VideoCapture(str(file_path))
         frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
         frame_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -86,7 +87,7 @@ class DatasetCacher:
             frame_width = int(frame_width / 2)
             frame_height = int(frame_height / 2)
         video = np.empty((speedup_frame_count, frame_height, frame_width), 
-            np.dtype("uint8"))
+            np.dtype('uint8'))
 
         # Read each frame of the video capture. If the frame index is a multiple
         # of our speedup factor, convert the frame to grayscale and store it in
@@ -116,39 +117,37 @@ class DatasetCacher:
         """Saves u and, optionally, its derivatives in a file.
         
         Args:
-            train_or_test (str): "train" or "test".
+            train_or_test (str): 'train' or 'test'.
             u (np.ndarray): The pixel values.
         """
 
         if self._derivative_method:
-            print(f"Calculating derivatives for {train_or_test}.")
+            print(f'Calculating derivatives for {train_or_test}.')
             h = 1
             k = 1
-            if self._derivative_method is "polynomial":
+            if self._derivative_method is 'polynomial':
                 (u_t, u_x, u_xx, u_y, u_yy) = self._compute_polynomial_derivatives(u)
-            elif self._derivative_method is "h2":
+            elif self._derivative_method is 'h2':
                 (u_t, u_x, u_xx, u_y, u_yy) = self._compute_h2_derivatives(u, h, k)
-            elif self._derivative_method is "h4":
+            elif self._derivative_method is 'h4':
                 (u_t, u_x, u_xx, u_y, u_yy) = self._compute_h4_derivatives(u, h, k)
-            elif self._derivative_method is "robust":
+            elif self._derivative_method is 'robust':
                 (u_t, u_x, u_xx, u_y, u_yy) = self._compute_robust_derivatives(u, h, k)
-            elif self._derivative_method is "savitzky":
+            elif self._derivative_method is 'savitzky':
                 (u_t, u_x, u_xx, u_y, u_yy) = self._compute_savitzky_derivatives(u, h, k)
 
             # Trim u so that its dimensions match the derivatives.
-            if self._derivative_method is "h2":
+            if self._derivative_method is 'h2':
                 u = u[:, 1:-1, 1:-1, 1:-1]
-            elif self._derivative_method is "polynomial":
+            elif self._derivative_method is 'polynomial':
                 margin = int((POLYNOMIAL_SAMPLES - 1) / 2)
                 u = u[:, margin:-margin, margin:-margin, margin:-margin]
             else:
                 u = u[:, 2:-2, 2:-2, 2:-2]
 
-        file_path = CACHED_FILE_PATH.format(
-            name=self._name,
-            train_or_test=train_or_test
-        )
-        print(f"  Saving data to {file_path}.")
+        file_path = Path(self._data_folder, 
+            f'dataset-{self._name}-{train_or_test}.npz')
+        print(f'  Saving data to {file_path}.')
         if self._derivative_method:
             np.savez(file_path, u=u, u_t=u_t, u_x=u_x, u_xx=u_xx, u_y=u_y, u_yy=u_yy)
         else:
@@ -168,7 +167,7 @@ class DatasetCacher:
             Tuple[np.ndarray, np.ndarray, np.ndarray,np.ndarray, np.ndarray]:
             (u_t, u_x, u_xx, u_y, u_yy)
         """
-        # See Table 6.3 "Central-difference formulas of order O(h^2)" in
+        # See Table 6.3 'Central-difference formulas of order O(h^2)' in
         # http://mathfaculty.fullerton.edu/mathews/n2003/differentiation/NumericalDiffProof.pdf.
         u_t = (u[:, 2:, 1:-1, 1:-1] - u[:, 0:-2, 1:-1, 1:-1]) / (2 * k)
         u_x = (u[:, 1:-1, 1:-1, 2:] - u[:, 1:-1, 1:-1, 0:-2]) / (2 * h)
@@ -191,7 +190,7 @@ class DatasetCacher:
             Tuple[np.ndarray, np.ndarray, np.ndarray,np.ndarray, np.ndarray]:
             (u_t, u_x, u_xx, u_y, u_yy)
         """
-        # See Table 6.4 "Central-difference formulas of order O(h^4)" in
+        # See Table 6.4 'Central-difference formulas of order O(h^4)' in
         # http://mathfaculty.fullerton.edu/mathews/n2003/differentiation/NumericalDiffProof.pdf.
         u_t = (+ 1 * u[:, 0:-4, 2:-2, 2:-2]
             - 8 * u[:, 1:-3, 2:-2, 2:-2]
@@ -231,8 +230,8 @@ class DatasetCacher:
             Tuple[np.ndarray, np.ndarray, np.ndarray,np.ndarray, np.ndarray]:
             (u_t, u_x, u_xx, u_y, u_yy)
         """
-        # See table "Smooth noise-robust differentiators (n=2, exact on 1, x, x^2)"
-        # and table "Second-order smooth differentiators (exact on 1, x, x^2, x^3)"
+        # See table 'Smooth noise-robust differentiators (n=2, exact on 1, x, x^2)'
+        # and table 'Second-order smooth differentiators (exact on 1, x, x^2, x^3)'
         # in http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/smooth-low-noise-differentiators/.
         u_t = (- 1 * u[:, 0:-4, 2:-2, 2:-2]
             - 2 * u[:, 1:-3, 2:-2, 2:-2]
@@ -268,8 +267,8 @@ class DatasetCacher:
             Tuple[np.ndarray, np.ndarray, np.ndarray,np.ndarray, np.ndarray]:
             (u_t, u_x, u_xx, u_y, u_yy)
         """
-        # See table "Coefficients for 1st derivative" 
-        # and table "Coefficients for 2nd derivative"
+        # See table 'Coefficients for 1st derivative' 
+        # and table 'Coefficients for 2nd derivative'
         # both with window size 5
         # in https://en.wikipedia.org/wiki/Savitzky%E2%80%93Golay_filter
         u_t = (- 2 * u[:, 0:-4, 2:-2, 2:-2]
@@ -309,8 +308,8 @@ class DatasetCacher:
             derivatives, (u_t, u_x, u_xx, u_y, u_yy).
         """
 
-        # Polynomial approximation is described briefly under "Numerical
-        # evaluation of derivatives" in
+        # Polynomial approximation is described briefly under 'Numerical
+        # evaluation of derivatives' in
         # https://advances.sciencemag.org/content/3/4/e1602614. They cite
         # http://emis.ams.org/journals/EJDE/conf-proc/21/k3/knowles.pdf.
 
@@ -361,7 +360,7 @@ class DatasetCacher:
         # Process each pixel in each frame of each video.
         for v in range(video_count):
             for t in range(margin, frame_count - margin):
-                print(f"  v={v}, t={t}")
+                print(f'  v={v}, t={t}')
                 for y in range(margin, y_count - margin):
                     for x in range(margin, x_count - margin):
                         u_block = u[v,

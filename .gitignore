@@ -1,6 +1,7 @@
-.ropeproject/
 __pycache__/
-Data/*
-!Data/README.md
-Images/
+.ropeproject/
+.vscode/settings.json
+data/
+data-old/
+output/
 venv/

@@ -1,6 +1,7 @@
+from pathlib import Path
+
 import numpy as np
 
-from dataset_cacher import CACHED_FILE_PATH
 
 class CachedDataset:
     """Loads a dataset from a file that was saved by DatasetCacher."""
@@ -49,26 +50,24 @@ class CachedDataset:
     def u_yy(self) -> int:
         return self._u_yy
 
-    def __init__(self, name: str, train_or_test: str) -> None:
+    def __init__(self, name: str, train_or_test: str, data_folder: str) -> None:
         """Initializer.
         
         Args:
-            name (str): "ffn" or "md".
-            train_or_test (str): "train" or "test".
+            name (str): 'ffn' or 'md'.
+            train_or_test (str): 'train' or 'test'.
         """
         self._train_or_test = train_or_test
 
         # Read derivatives from a data file if it exists already.
-        file_path = CACHED_FILE_PATH.format(
-            name=name,
-            train_or_test=train_or_test
-        )
-        print(f"  Reading data from {file_path}.")
+        file_path = Path(data_folder, 
+            f'dataset-{name}-{train_or_test}.npz')
+        print(f'  Reading data from {file_path}.')
         with np.load(file_path) as data:
-            self._u = data["u"]
-            if "u_t" in data:
-                self._u_t = data["u_t"]
-                self._u_x = data["u_x"]
-                self._u_xx = data["u_xx"]
-                self._u_y = data["u_y"]
-                self._u_yy = data["u_yy"]
+            self._u = data['u']
+            if 'u_t' in data:
+                self._u_t = data['u_t']
+                self._u_x = data['u_x']
+                self._u_xx = data['u_xx']
+                self._u_y = data['u_y']
+                self._u_yy = data['u_yy']

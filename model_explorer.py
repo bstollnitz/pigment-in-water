@@ -1,21 +1,21 @@
 import collections
 from typing import List, Tuple
+from pathlib import Path
 
 import altair as alt
 import numpy as np
 import numpy.polynomial.polynomial as poly
 import pandas as pd
+from _plotly_future_ import v4_subplots  # For titles on subplots.
+import plotly.io as pio
+import plotly.plotly as py
 import sklearn.linear_model as sk
 import sklearn.preprocessing as pre
-
-from _plotly_future_ import v4_subplots # For titles on subplots.
-import plotly.plotly as py
 from plotly import offline, tools
-import plotly.io as pio
 
 from cached_dataset import CachedDataset
 
-FITTER = "Lasso" # Lasso, Ridge, or LinearRegression
+FITTER = 'Lasso' # Lasso, Ridge, or LinearRegression
 ALPHA = 0.0001 # used in Lasso
 
 class ModelExplorer:
@@ -24,37 +24,40 @@ class ModelExplorer:
     def __init__(
         self,
         train_dataset: CachedDataset,
-        test_dataset: CachedDataset
+        test_dataset: CachedDataset,
+        output_folder: str,
     ) -> None:
         """Initializes the class.
         
         Args:
             train_dataset (CachedDataset): The training dataset.
             test_dataset (CachedDataset): The test dataset.
+            output_folder (str): Output folder.
         """
         self._train = train_dataset
         self._test = test_dataset
+        self._output_folder = output_folder
 
     def explore(self) -> None:
         """Performs model discovery."""
         self._graph_all(self._train)
-        self._graph_cross_sections("test", "u_t", self._test.u_t[0])
+        self._graph_cross_sections('test', 'u_t', self._test.u_t[0])
 
         # Build a library, including x, and y derivatives and second derivatives
-        print("Building library.")
+        print('Building library.')
         (A_train, self._term_names) = self._build_library(self._train)
         (A_test, self._term_names) = self._build_library(self._test)
 
-        print(f"cond(A_train) = {np.linalg.cond(A_train)}")
-        print(f"cond(A_test) = {np.linalg.cond(A_test)}")
+        print(f'cond(A_train) = {np.linalg.cond(A_train)}')
+        print(f'cond(A_test) = {np.linalg.cond(A_test)}')
 
         # Flatten u_t.
         b = self._train.u_t.reshape(-1, 1)
 
         # Learn coefficients for a first-order PDE.
-        print("Fitting model.")
+        print('Fitting model.')
         x = self._fit(A_train, b)
-        print(f"  u_t = {self._get_pde_string(x)}")
+        print(f'  u_t = {self._get_pde_string(x)}')
 
         # Graph coefficients for the PDE.
         self._graph_coefficients(x)
@@ -63,8 +66,8 @@ class ModelExplorer:
         # various slices through a pixel in the middle of the grid.
         u_t_train_predicted = self._fitter.predict(A_train).reshape(self._train.u_t.shape)
         u_t_test_predicted = self._fitter.predict(A_test).reshape(self._test.u_t.shape)
-        self._graph_cross_sections("train prediction", "u_t", u_t_train_predicted[0])
-        self._graph_cross_sections("test prediction", "u_t", u_t_test_predicted[0])
+        self._graph_cross_sections('train prediction', 'u_t', u_t_train_predicted[0])
+        self._graph_cross_sections('test prediction', 'u_t', u_t_test_predicted[0])
 
     def _build_library(self, dataset: CachedDataset) -> np.ndarray:
         """Builds a library of potential dynamical system terms. 
@@ -95,14 +98,14 @@ class ModelExplorer:
         # Create a library of named terms.
         n = dataset.u.size
         terms = (
-            ("1", np.ones((n, 1))),
-            ("u", dataset.u),
-            ("u_x", dataset.u_x),
-            ("u_xx", dataset.u_xx),
-            ("u_y", dataset.u_y),
-            ("u_yy", dataset.u_yy),
-            ("x * u_x", x * dataset.u_x),
-            ("y * u_y", y * dataset.u_y),
+            ('1', np.ones((n, 1))),
+            ('u', dataset.u),
+            ('u_x', dataset.u_x),
+            ('u_xx', dataset.u_xx),
+            ('u_y', dataset.u_y),
+            ('u_yy', dataset.u_yy),
+            ('x * u_x', x * dataset.u_x),
+            ('y * u_y', y * dataset.u_y),
         )
 
         # Get the name of each term.
@@ -127,20 +130,20 @@ class ModelExplorer:
             np.ndarray: A vector of coefficients.
         """
         # Initialize fitter.
-        if FITTER is "Lasso":
-            print(f"  Lasso(alpha={ALPHA})")
+        if FITTER is 'Lasso':
+            print(f'  Lasso(alpha={ALPHA})')
             self._fitter = sk.Lasso(alpha=ALPHA, fit_intercept=False)
-        elif FITTER is "Ridge":
-            print("  Ridge")
+        elif FITTER is 'Ridge':
+            print('  Ridge')
             self._fitter = sk.Ridge(fit_intercept=False)
         else:
-            print("  LinearRegression")
+            print('  LinearRegression')
             self._fitter = sk.LinearRegression(fit_intercept=False)
 
         # Solve for coefficients x.
         self._fitter.fit(A, b)
         score = self._fitter.score(A, b)
-        print(f"  Score: {score}")
+        print(f'  Score: {score}')
         return self._fitter.coef_.flatten()
 
     def _get_pde_string(self, coefficients: np.ndarray) -> str:
@@ -152,7 +155,7 @@ class ModelExplorer:
         Returns:
             str: The PDE formula as a string.
         """
-        pde = ""
+        pde = ''
         coefficients = np.round(coefficients, decimals=8)
         has_term = False
         for (i, term_name) in enumerate(self._term_names):
@@ -160,14 +163,14 @@ class ModelExplorer:
             if c != 0:
                 if has_term:
                     if c < 0:
-                        pde += " - "
+                        pde += ' - '
                         c = -c
                     else:
-                        pde += " + "
-                pde += str(c) + " " + (term_name if term_name != "1" else "")
+                        pde += ' + '
+                pde += str(c) + ' ' + (term_name if term_name != '1' else '')
                 has_term = True
         if not has_term:
-            pde = "0"
+            pde = '0'
         return pde
 
     def _graph_coefficients(self, coefficients: np.ndarray) -> None:
@@ -178,15 +181,16 @@ class ModelExplorer:
             where m is the number of terms we consider.
         """
         df = pd.DataFrame({
-            "Coefficient": coefficients,
-            "Term": self._term_names
+            'Coefficient': coefficients,
+            'Term': self._term_names
         })
         chart = alt.Chart(df).mark_bar().encode(
-            x="Term",
-            y="Coefficient",
+            x='Term',
+            y='Coefficient',
         ).properties(width=300)
-        chart.configure(background="#fff").save(
-            "Images/md_coefficients.png",
+        path = Path(self._output_folder, 'md_coefficients.html')
+        chart.configure(background='#fff').save(
+            str(path),
             scale_factor=2.0
         )
 
@@ -198,18 +202,18 @@ class ModelExplorer:
             dataset (CachedDataset): A dataset.
         """
         video_index = 0
-        self._graph_cross_sections(dataset.train_or_test, "u", dataset.u[video_index])
-        self._graph_cross_sections(dataset.train_or_test, "u_t", dataset.u_t[video_index])
-        self._graph_cross_sections(dataset.train_or_test, "u_x", dataset.u_x[video_index])
-        self._graph_cross_sections(dataset.train_or_test, "u_xx", dataset.u_xx[video_index])
-        self._graph_cross_sections(dataset.train_or_test, "u_y", dataset.u_y[video_index])
-        self._graph_cross_sections(dataset.train_or_test, "u_yy", dataset.u_yy[video_index])
+        self._graph_cross_sections(dataset.train_or_test, 'u', dataset.u[video_index])
+        self._graph_cross_sections(dataset.train_or_test, 'u_t', dataset.u_t[video_index])
+        self._graph_cross_sections(dataset.train_or_test, 'u_x', dataset.u_x[video_index])
+        self._graph_cross_sections(dataset.train_or_test, 'u_xx', dataset.u_xx[video_index])
+        self._graph_cross_sections(dataset.train_or_test, 'u_y', dataset.u_y[video_index])
+        self._graph_cross_sections(dataset.train_or_test, 'u_yy', dataset.u_yy[video_index])
 
     def _graph_cross_sections(self, train_or_test: str, label: str, u: np.ndarray) -> None:
         """Creates three heatmaps showing cross sections of the given data.
         
         Args:
-            train_or_test (str): "train" or "test.
+            train_or_test (str): 'train' or 'test.
             label (str): The name of the independent variable.
             u (np.ndarray): The data.
         """
@@ -231,7 +235,7 @@ class ModelExplorer:
         # Make a figure with three subplots.
         rows = 1
         cols = 3
-        subplot_titles = (f"t = {i}", f"y = {j}", f"x = {k}")
+        subplot_titles = (f't = {i}', f'y = {j}', f'x = {k}')
         fig = tools.make_subplots(rows=rows, cols=cols,
             subplot_titles=subplot_titles)
         fig.append_trace(graph1, 1, 1)
@@ -240,15 +244,15 @@ class ModelExplorer:
 
         # Add title and axis labels.
         fixed_label = self._fix_subscript(label)
-        title = f"{train_or_test} {fixed_label}(x, y, t)"
+        title = f'{train_or_test} {fixed_label}(x, y, t)'
         fig.layout.update(title=title, width=2400, height=800)
-        self._set_axis_labels(fig, "", "x", "y")
-        self._set_axis_labels(fig, "2", "x", "t")
-        self._set_axis_labels(fig, "3", "y", "t")
+        self._set_axis_labels(fig, '', 'x', 'y')
+        self._set_axis_labels(fig, '2', 'x', 't')
+        self._set_axis_labels(fig, '3', 'y', 't')
 
         # Save the plot in a file.
-        train_or_test = train_or_test.replace(" ", "_")
-        pio.write_image(fig, f"Images/md_{label}_{train_or_test}.png")
+        train_or_test = train_or_test.replace(' ', '_')
+        pio.write_image(fig, f'{self._output_folder}/md_{label}_{train_or_test}.png')
 
     def _fix_subscript(self, s: str) -> str:
         """Replaces a LaTeX-style subscript with an HTML subscript.
@@ -259,8 +263,8 @@ class ModelExplorer:
         Returns:
             str: A modified string.
         """
-        if "_" in s:
-            return s.replace("_", "<sub>") + "</sub>"
+        if '_' in s:
+            return s.replace('_', '<sub>') + '</sub>'
         return s
 
     def _set_axis_labels(self, fig, axis_number: str, xlabel: str, ylabel: str) -> None:
@@ -272,8 +276,8 @@ class ModelExplorer:
             xlabel (str): The label for the X axis.
             ylabel (str): The label for the Y axis.
         """
-        fig.layout[f"xaxis{axis_number}"].update({ "title": { "text": xlabel } })
-        fig.layout[f"yaxis{axis_number}"].update({ "title": { "text": ylabel } })
+        fig.layout[f'xaxis{axis_number}'].update({ 'title': { 'text': xlabel } })
+        fig.layout[f'yaxis{axis_number}'].update({ 'title': { 'text': ylabel } })
 
     def _graph_cross_section(self, u: np.ndarray, showscale: bool = False) -> dict:
         """Creates a heatmap for the given data.
@@ -288,5 +292,5 @@ class ModelExplorer:
         """
         x = np.arange(u.shape[1])
         y = np.arange(u.shape[0])
-        return dict(type="heatmap", x=x, y=y, z=u, colorscale="RdBu",
+        return dict(type='heatmap', x=x, y=y, z=u, colorscale='RdBu',
             showscale=showscale)
