@@ -1,7 +1,7 @@
 # Predicting time evolution of a pigment in water
 
 *Technologies:* Python, Keras, NumPy, Scikit-learn, Pandas, Plotly, Altair. <br>
-*Topics:* deep learning, PCA, time-series, model discovery. <br>
+*Topics:* deep learning, principal component analysis (PCA), time-series, model discovery. <br>
 
 ## Description
 
