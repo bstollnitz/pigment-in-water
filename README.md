@@ -27,14 +27,14 @@ To run this project:
 
 (Windows)
 ```sh
-conda env create -f environment-win.yml
+conda env create -f environment_win.yml
 conda activate pigment-in-water
 python main.py
 ```
 
 (MacOS)
 ```sh
-conda env create -f environment-mac.yml
+conda env create -f environment_mac.yml
 conda activate pigment-in-water
 python main.py
 ```
