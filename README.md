@@ -7,7 +7,7 @@
 
 <p float="left">
   <a href="https://bea-portfolio.s3-us-west-2.amazonaws.com/pigment-in-water/red_diffusion_1.mp4">
-    <img src="readme_files/pigment-in-water.png" width="800" controls/>
+    <img src="readme_files/pigment-in-water.png" width="400" controls/>
   </a>
 </p>
 
