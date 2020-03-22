@@ -7,10 +7,9 @@
 
 <p float="left">
   <a href="https://bea-portfolio.s3-us-west-2.amazonaws.com/pigment-in-water/red_diffusion_1.mp4">
-    <img src="readme_files/video.png" width="800" controls/>
+    <img src="readme_files/pigment-in-water.png" width="800" controls/>
   </a>
 </p>
-![](docs/pigment-in-water.png?raw=true)
 
 The goal of this project is to explore techniques for predicting the behavior of food coloring in water. I started by recording several videos of the diffusion of pigment of colored candy immersed in water, to be used as data source. These videos can be found <a href='https://1drv.ms/u/s!AiCY1Uw6PbEfhaEncETEzJ0kakis6g?e=p3rMWV'>here</a>. 
 
