@@ -23,18 +23,18 @@ of my masters in Applied Mathematics.
 
 ## Running
 
-To run this project:
+To run this project on macOS:
 
-(Windows)
 ```sh
-conda env create -f environment_win.yml
+conda env create -f environment_mac.yml
 conda activate pigment-in-water
 python main.py
 ```
 
-(Mac)
+To run this project on Windows:
+
 ```sh
-conda env create -f environment_mac.yml
+conda env create -f environment_win.yml
 conda activate pigment-in-water
 python main.py
 ```
