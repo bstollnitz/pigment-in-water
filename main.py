@@ -45,7 +45,7 @@ def main() -> None:
     """Main program."""
     ensure_reproducibility()
     download_videos()
-    # generate_cached_data()
+    generate_cached_data()
 
     print('Feed-forward network')
     print('====================')
