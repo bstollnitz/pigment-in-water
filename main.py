@@ -1,5 +1,5 @@
 import numpy as np
-from tensorflow import set_random_seed
+import tensorflow as tf
 
 from cached_dataset import CachedDataset
 from dataset_cacher import DatasetCacher
@@ -19,7 +19,7 @@ def ensure_reproducibility() -> None:
     """Ensures reproducibility of results.
     """
     np.random.seed(1)
-    set_random_seed(1)
+    tf.random.set_seed(1)
 
 
 def download_videos() -> None:
@@ -45,7 +45,7 @@ def main() -> None:
     """Main program."""
     ensure_reproducibility()
     download_videos()
-    generate_cached_data()
+    # generate_cached_data()
 
     print('Feed-forward network')
     print('====================')
