@@ -37,6 +37,12 @@ class DatasetCacher:
 
     def compute_and_save(self) -> None:
         """Loads videos, computes derivatives, and saves everything."""
+        file_path = Path(self._data_folder, 
+            f'dataset-{self._name}-train.npz')
+        if file_path.exists():
+            print(f'Using cached data for {self._name}.')
+            return
+
         # Load videos.
         print('Loading videos.')
         u_train = self._load_videos([1, 2, 3, 4])
