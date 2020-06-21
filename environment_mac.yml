@@ -1,0 +1,10 @@
+name: pigment-in-water
+dependencies:
+  - altair=3.2.0=py36_0
+  - keras=2.2.4
+  - numpy=1.18.1
+  - opencv=3.4.2
+  - plotly=3.10.0=py_0
+  - python=3.6.10
+  - scikit-learn=0.20.3
+  - tensorflow=1.15.0
